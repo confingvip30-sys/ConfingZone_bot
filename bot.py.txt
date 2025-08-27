@@ -26,7 +26,7 @@ conn.commit()
 # ==============================
 # سرور FastAPI برای وبهوک
 # ==============================
-app = FastAPI()
+app = FastAPI(https://github.com/confingvip30-sys/ConfingZone_bot.git)
 
 @app.post("/webhook")
 async def webhook(request: Request):
