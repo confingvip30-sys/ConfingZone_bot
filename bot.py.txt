@@ -1,0 +1,115 @@
+import sqlite3
+import random
+from datetime import datetime
+from fastapi import FastAPI, Request
+import uvicorn
+
+# ==============================
+# تنظیمات ربات
+# ==============================
+TOKEN = "CFIHB0MENZZGSVPCDZYDUMQFKBJYLOPSKHCGFLMEDDOFMFVCYUOSMPKUAGRFSZCU"
+ADMIN_USERNAME = "@Confiiing_VIP"  # آیدی ادمین روبیکا
+
+# دیتابیس
+conn = sqlite3.connect("bot.db", check_same_thread=False)
+cur = conn.cursor()
+
+cur.execute("""CREATE TABLE IF NOT EXISTS users (
+    user_id TEXT PRIMARY KEY,
+    join_date TEXT,
+    balance INTEGER DEFAULT 0,
+    purchases INTEGER DEFAULT 0,
+    last_order TEXT
+)""")
+conn.commit()
+
+# ==============================
+# سرور FastAPI برای وبهوک
+# ==============================
+app = FastAPI()
+
+@app.post("/webhook")
+async def webhook(request: Request):
+    data = await request.json()
+    user_id = str(data.get("user", {}).get("id", ""))
+    text = data.get("text", "")
+
+    if not user_id:
+        return {"ok": True}
+
+    # ثبت کاربر در دیتابیس
+    cur.execute("SELECT * FROM users WHERE user_id=?", (user_id,))
+    if not cur.fetchone():
+        cur.execute("INSERT INTO users (user_id, join_date) VALUES (?, ?)",
+                    (user_id, datetime.now().strftime("%Y-%m-%d %H:%M")))
+        conn.commit()
+
+    # دستور شروع
+    if text == "/start":
+        return {
+            "ok": True,
+            "result": {
+                "text": "به فروشگاه ConfingZone خوش اومدی 🌿💎\n"
+                        "ارائه باکیفیت‌ ترین سرورها 👑\n"
+                        "ثابت‌ترین IP بدون کوچکترین تغییر 🫧\n\n"
+                        "برای تهیه و مدیریت سرویس‌ها از دکمه‌های زیر استفاده کن👇",
+                "keyboard": [
+                    ["/shop", "/myconfigs"],
+                    ["/buy", "/learn"],
+                    ["/lottery", "/contact"],
+                    ["/account"]
+                ]
+            }
+        }
+
+    # فروشگاه
+    elif text == "/shop":
+        return {
+            "ok": True,
+            "result": {
+                "text": "انتخاب کنید:",
+                "keyboard": [
+                    ["کانفیگ های اقتصادی ☘️🩵"],
+                    ["کانفیگ های بمب و VIP 👾👽"]
+                ]
+            }
+        }
+
+    # پشتیبانی
+    elif text == "/contact":
+        return {
+            "ok": True,
+            "result": {
+                "text": f"برای ارتباط با پشتیبانی به این آیدی پیام بده:\n{ADMIN_USERNAME}"
+            }
+        }
+
+    # حساب کاربری
+    elif text == "/account":
+        cur.execute("SELECT * FROM users WHERE user_id=?", (user_id,))
+        u = cur.fetchone()
+        purchases = u[3]
+        role = "کاربر عادی"
+        if 5 <= purchases < 15:
+            role = "کاربر فعال"
+        elif purchases >= 15:
+            role = "مشتری همیشگی"
+
+        return {
+            "ok": True,
+            "result": {
+                "text": f"👤 شناسه کاربری: {user_id}\n"
+                        f"🎗️ نقش من: {role}\n"
+                        f"🕑 تاریخ عضویت: {u[1]}\n"
+                        f"👝 موجودی من: {u[2]} تومان\n"
+                        f"🌀 آخرین سفارش: {u[4]}\n"
+                        f"🗳️ تعداد سفارش موفق: {u[3]}"
+            }
+        }
+
+    else:
+        return {"ok": True, "result": {"text": "دستور نامعتبر ⚠️"}}
+
+# اجرای لوکال (برای تست)
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
